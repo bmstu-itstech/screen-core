@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
 
-First, run the development server:
+# ScreenCore — Система управления экранами
 
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+![Status](https://img.shields.io/badge/Status-Beta-orange)
+
+**ScreenCore** — это современная платформа для централизованного управления сетью дисплеев. Система позволяет удаленно управлять контентом, расписанием работы и экстренными оповещениями на телевизорах, информационных табло и мониторах в режиме реального времени.
+
+Проект построен на **Next.js 15** с использованием **Custom Node.js Server** для поддержки WebSockets.
+
+---
+
+## Основные возможности
+
+### Управление устройствами
+- **Мгновенный статус:** Отображение статуса (Online/Offline) и пинга (Latency) в реальном времени через WebSockets + Redis.
+- **Простое подключение:** Система сопряжения устройств через 5-значный код (Pairing Code).
+- **Удаленное управление:** Изменение громкости, режима отображения и перезагрузка страницы плеера из админки.
+
+### Управление контентом
+- **Медиатека:** Загрузка видео и изображений.
+- **Плейлисты:** Drag & Drop редактор последовательности воспроизведения.
+- **Режимы работы:**
+    - *Слайд-шоу:* Для изображений с таймером.
+    - *Видео:* Непрерывное воспроизведение роликов.
+- **Расписание:** Настройка времени работы (автоматическое включение/выключение черного экрана).
+
+### Иерархическая структура
+- Создание структуры организации (ВУЗ → Корпус → Этаж → Аудитория).
+- Наследование настроек и контента от родительских узлов к дочерним.
+- Ролевая модель доступа (Root / Admin).
+
+---
+
+## Технический стек
+
+*   **Frontend & Backend:** Next.js 15 (App Router), React 19.
+*   **Server:** Custom Node.js server (`server.ts`) для обработки WebSocket соединений и раздачи статики.
+*   **Database:** MongoDB (в режиме Replica Set для поддержки транзакций).
+*   **Cache & Pub/Sub:** Redis (синхронизация состояния, обмен сообщениями между API и WS).
+*   **Message Broker:** RabbitMQ (для асинхронных задач и событий).
+*   **DevOps:** Docker & Docker Compose.
+
+---
+
+## Установка и запуск (Docker)
+
+### 1. Клонирование репозитория
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/screencore.git
+cd screencore
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Конфигурация
+Создайте файл `.env` в корне проекта.
+> **Важно:** `DB_URI` должен содержать `replicaSet=rs0`, так как код использует транзакции Mongoose.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Секретные ключи (сгенерируйте свои)
+ACCESS_SECRET=replace_with_secure_string_123
+REFRESH_SECRET=replace_with_secure_string_456
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Подключения к сервисам (имена хостов для Docker сети)
+DB_URI=mongodb://mongo:27017/screencore?replicaSet=rs0&directConnection=true
+REDIS_URL=redis://redis:6379
+AMQP_URL=amqp://rabbitmq:5672
 
-## Learn More
+# URL для раздачи статики
+NEXT_PUBLIC_STATIC_URL=http://localhost:8081/static
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Запуск
+```bash
+docker-compose up -d --build
+```
+*Примечание: При первом запуске инициализация MongoDB Replica Set может занять до 10-20 секунд.*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. Первоначальная настройка
+1. Откройте в браузере: `http://localhost:3000/system-setup`
+2. Создайте **Root-аккаунт** и укажите название организации.
+3. После успеха вы будете перенаправлены на страницу входа.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📖 Как пользоваться
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Для администратора
+1. Перейдите на `/admin/dashboard` для обзора системы.
+2. В разделе **Материалы** загрузите контент.
+3. В разделе **Экраны** нажмите "Добавить экран", чтобы сгенерировать код.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Для плеера (Экран/TV)
+1. Откройте на устройстве `http://localhost:3000/setup`.
+2. Введите полученный 5-значный код в админ-панели.
+3. Экран автоматически перейдет в режим воспроизведения (`/player`).
+
+---
+
+## Архитектура и разработка
+
+### Особенности запуска
+Проект использует **Custom Server** (`server.ts`).
+*   Команда `next start` **не будет работать корректно**, так как она запускает стандартный сервер Next.js, который не знает про WebSockets и кастомную раздачу файлов из папки `/uploads`.
+*   В продакшене (и в Docker) используется команда `node server.js` (после компиляции TypeScript).
+
+### Структура проекта
+```
+├── src
+│   ├── app              # Next.js App Router (страницы и API)
+│   ├── entities         # Бизнес-сущности (Device, User)
+│   ├── features         # Функциональные блоки (Emergency, Auth)
+│   ├── shared           # Общие модули (DB, Redis, UI Kit)
+│   └── widgets          # Крупные компоненты интерфейса
+├── uploads              # Папка для хранения медиафайлов
+├── server.ts            # Точка входа сервера (HTTP + WS)
+└── docker-compose.yml   # Оркестрация контейнеров
+```
+
+---
+
+## Устранение неполадок (Troubleshooting)
+
+### Ошибка `Redis Client Error: ECONNREFUSED`
+**Причина:** Приложение пытается подключиться к Redis по `localhost`, но в Docker это другой контейнер.
+**Решение:** Убедитесь, что в `docker-compose.yml` в сервисе `app` используется `env_file: .env`, а не `environment: - .env`. Переменные должны попасть внутрь контейнера.
+
+### Ошибка `Setup failed` (Mongoose Transactions)
+**Причина:** MongoDB запущена в режиме Standalone, который не поддерживает транзакции.
+**Решение:** Используйте `docker-compose.yml` из этого репозитория. Он содержит сервис `mongo-init`, который автоматически инициализирует Replica Set (`rs0`).
+
+### Статика отдает 404
+**Причина:** Запущен стандартный сервер Next.js вместо кастомного.
+**Решение:** Убедитесь, что `CMD` в Dockerfile запускает `node server.js`.
+
+---
+
+## Лицензия
+
+MIT License.

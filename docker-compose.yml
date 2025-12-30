@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    volumes:
+      - ./uploads:/app/uploads
+
+  mongo:
+    image: mongo:6
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mongo-init:
+    image: mongo:6
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: >
+      bash -c "mongosh --host mongo:27017 --eval 'try { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongo:27017\" }] }) } catch (e) { print(e); }'"
+
+  redis:
+    image: redis:alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+
+volumes:
+  mongo_data:
