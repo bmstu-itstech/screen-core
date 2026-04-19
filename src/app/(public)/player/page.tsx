@@ -340,7 +340,7 @@ export default function PlayerPage() {
     }, [handleConfigUpdate, handleEmergency]);
 
     const { isConnected, send } = useSocket(
-        `ws://${typeof window !== 'undefined' ? window.location.host : ''}/ws`,
+        `wss://${typeof window !== 'undefined' ? window.location.host : ''}/ws`,
         handleSocketMessage
     );
 
