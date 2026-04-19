@@ -26,7 +26,7 @@ interface SocketMessagePayload {
     latency?: number;
 }
 
-const WS_URL = `ws://${typeof window !== 'undefined' ? window.location.host : ''}/ws`;
+const WS_URL = `wss://${typeof window !== 'undefined' ? window.location.host : ''}/ws`;
 
 function useDevicesList() {
     const [devicesMap, setDevicesMap] = useState<Map<string, Device>>(new Map());
