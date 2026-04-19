@@ -50,7 +50,7 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/bmstu-itstech/screencore.git
+git clone https://github.com/bmstu-itstech/screen-core.git
 cd screencore
 ```
 
